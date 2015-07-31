@@ -1,0 +1,11 @@
+# /ouput/scorelog.txt
+#
+# scorebot outputs to this file when a key is found in a banner
+#
+# Example:
+#
+# [2015-07-30 23:22:10] Groogle: + 150
+# [2015-07-30 23:26:43] Macrosoft: + 200
+# [2015-07-30 23:27:26] Groogle: + 100
+#
+#####################################################################
