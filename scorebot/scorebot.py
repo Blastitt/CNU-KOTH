@@ -4,13 +4,13 @@ import socket
 import time
 
 
-class scorebot(Object):
+class scorebot():
 
 	def __init__(self, iplist, keylist, outfile, interval):
 
 		self.iplist = open(iplist, 'r')
 		self.keylist = open(keylist, 'r')
-		self.outfile = open(outfile, "r+")
+		self.outfile = open(outfile, 'a')
 #		self.sqladdr = sqladdr		Maybe add SQL database functionality later.
 		self.interval = interval
 		self.connection = None
@@ -29,8 +29,9 @@ class scorebot(Object):
 	def connect(self):
 		try:
 
+			print("Connecting...")
 			self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-			self.connection.connect(self.status["currentip"], self.status["currentport"])
+			self.connection.connect((self.status["currentip"], self.status["currentport"]))
 
 			return 1
 
@@ -39,11 +40,15 @@ class scorebot(Object):
 			print("[!] Error connecting to  %s:%d - %s" % (self.status["currentip"], self.status["currentport"], str(e)))
 			return 0
 
-	# Get the first 1024 bytes sent from the service. Returns 1 on success, 0 on failure
-	def getBanner(self):
+	# Get the file sent from the service. Returns 1 on success, 0 on failure
+	def getFile(self):
 		try:
-
-			self.status["databuffer"] = self.connection.recv(1024)
+			print("Requesting File...")
+			fileobj = self.connection.makefile('r', 0)
+			fileobj.write("GET / HTTP/1.0\n\n")
+			self.status["databuffer"] = fileobj.readlines()
+			for line in self.status["databuffer"]:
+				print(line)
 			return 1
 
 		except Exception as e:
@@ -54,7 +59,7 @@ class scorebot(Object):
 	# Parse databuffer for a key. Returns first Key found, or 0 for none.
 	def findKey(self):
 
-		for key in keylist:
+		for key in self.keylist:
 
 			if key[0] != '#':
 
@@ -62,7 +67,7 @@ class scorebot(Object):
 				self.status["currentkey"] = key[0]
 				self.status["currentteam"] = key[1]
 
-				if self.status["databuffer"].find(self.status["currentkey"]) != -1:
+				if "".join(self.status["databuffer"]).find(self.status["currentkey"]) != -1:
 
 					self.status["databuffer"] = ""
 					return 1
@@ -74,7 +79,7 @@ class scorebot(Object):
 	# Connect to each service, get its banner, parse it for a key, appends current time, team name, and points to output file.
 	def score(self):
 
-		for line in iplist:
+		for line in self.iplist:
 
 			if line[0] != '#':
 
@@ -88,19 +93,24 @@ class scorebot(Object):
 
 				if self.status["connected"]:
 
-					if self.getBanner():
+					if self.getFile():
 
 						if self.findKey():
 
+							print("[+] %s scored %d points!" % (self.status["currentteam"], self.status["pointsworth"]))
 							currtime = time.strftime("%Y-%m-%d %H:%M:%S")
-							self.outfile.append("[%s] %s: + %d\n" % (currtime, self.status["currentteam"], self.status["pointsworth"]))
+							self.outfile.write("[%s] %s: + %d\n" % (currtime, self.status["currentteam"], self.status["pointsworth"]))
 
+						self.keylist.seek(0)
+						
 					self.connection.close()
 					self.status["connected"] = False
 
+		self.iplist.seek(0)
+
 if __name__ == '__main__':
 	
-	myscorebot = scorebot("./config/iplist.cfg", "./config/keylist.cfg", "./output/scorelog.txt", 60)
+	myscorebot = scorebot("./config/iplist.cfg", "./config/keylist.cfg", "./output/scorelog.txt", 10)
 
 	while True:
 
