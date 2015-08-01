@@ -17,7 +17,6 @@
 <br>
 </div>
 
-<hr>
 <container>
 <table class="table" style="width: 70%; margin-left: auto; margin-right: auto"">
 <tr><th>Name</th><th>Score</th></tr>
@@ -37,15 +36,21 @@ $result = $conn->query($sql);
 }
 // DEBUG var_dump($scores);
 //var_dump($users);
+if (isset($_COOKIE["user"])) {
+	echo "<center><br>You look like you're " . $_COOKIE["user"] . ", who has a score of: <br>" ;
+	$keyloc = array_search($_COOKIE["user"] , $users);
+	echo "<b>" . $scores[$keyloc] . "</b></center><br>";
+}
+
 foreach($scores as $key => $item){
   print "<tr><td>" . $users[$key] . "</td><td>" . $item . "</td></tr>";
 }
 ?>
 
+
 </table>
 <container>
-<br>
-<center><b>Live Action Log</b><br>
+<center>
 <iframe src="log.log" width="90%" scrolling="yes" style="text-align: yes" />
 </center>
 

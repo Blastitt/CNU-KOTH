@@ -29,7 +29,7 @@ $result = $conn->query($sql);
 }
 print_r($inspector);
 foreach ($inspector as $teamname) {
-	$scoar = shell_exec("/checkteam.sh " . $teamname);
+	$scoar = shell_exec("/checkteam.sh " . md5($teamname));
 	$sql2 = "SELECT score FROM teams WHERE user='" . $teamname . "';";
 	$result3 = $conn->query($sql2);
 	echo $scoar;
