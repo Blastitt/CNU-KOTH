@@ -36,7 +36,7 @@ foreach ($inspector as $teamname) {
 	while ($row = $result3->fetch_assoc()) {
         $scoreorig = $row['score'];
     	}
-	$newscore = $scoreorig+1;
+	$newscore = $scoreorig+$scoar;
 	echo $newscore . " new score, " . $scoreorig . " old score";
 	$sql3 = "UPDATE teams SET score='" . $newscore .  "' WHERE user='" . $teamname .  "'";
 	$result4 = $conn->query($sql3);

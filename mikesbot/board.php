@@ -2,17 +2,18 @@
 <!DOCTYPE html>
 <html>
   <head>
+	<meta http-equiv="refresh" content="30">
     <title>Scoreboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Bootstrap -->
     <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen">
   </head>
-  <body>
+  <body style="background-image: url('');">
     <script src="http://code.jquery.com/jquery.js"></script>
     <script src="bootstrap/js/bootstrap.min.js"></script>
 
 <div style="padding-left: 20px; background-color: lightgray; color: white; font-size: 18px; font-weight: bold; padding-top: 20px; text-align: center;">
-<img src="CNUCTF.png" width="20%"></img>
+<img src="GMUCTF.png" width="20%"></img>
 <br>
 </div>
 
@@ -43,4 +44,12 @@ foreach($scores as $key => $item){
 
 </table>
 <container>
+<br>
+<center><b>Live Action Log</b><br>
+<iframe src="log.log" width="90%" scrolling="yes" style="text-align: yes" />
+</center>
+
+
+
+
 </body></html>

@@ -39,10 +39,14 @@ if ($result->num_rows > 0) {
 //				echo "";
 //			}
 //		echo var_dump($result);
-	        $sql = "INSERT INTO teams (UserId, user, hash, score) VALUES ('" . rand() . "','" . $desiredusername . "','" . md5($desiredpass) . "','0');";
-		$result = $conn->query($sql);
-		echo $result;
-		echo "Registered " . $desiredusername . " successfully";
+		if (ctype_alnum($desiredusername)) {
+		        $sql = "INSERT INTO teams (UserId, user, hash, score) VALUES ('" . rand() . "','" . $desiredusername . "','" . md5($desiredpass) . "','0');";
+			$result = $conn->query($sql);
+			echo $result;
+			echo "Registered " . $desiredusername . " successfully";
+		} else {
+		die("alphanumeric keys for team name only");
+		}
 	}
 }
 
