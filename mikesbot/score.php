@@ -29,14 +29,14 @@ $result = $conn->query($sql);
 }
 print_r($inspector);
 foreach ($inspector as $teamname) {
-	$scoar = shell_exec("/checkteam.sh " . $teamname);
+	$scoar = shell_exec("/checkteam.sh " . md5($teamname));
 	$sql2 = "SELECT score FROM teams WHERE user='" . $teamname . "';";
 	$result3 = $conn->query($sql2);
 	echo $scoar;
 	while ($row = $result3->fetch_assoc()) {
         $scoreorig = $row['score'];
     	}
-	$newscore = $scoreorig+1;
+	$newscore = $scoreorig+$scoar;
 	echo $newscore . " new score, " . $scoreorig . " old score";
 	$sql3 = "UPDATE teams SET score='" . $newscore .  "' WHERE user='" . $teamname .  "'";
 	$result4 = $conn->query($sql3);

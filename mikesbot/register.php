@@ -39,14 +39,33 @@ if ($result->num_rows > 0) {
 //				echo "";
 //			}
 //		echo var_dump($result);
-	        $sql = "INSERT INTO teams (UserId, user, hash, score) VALUES ('" . rand() . "','" . $desiredusername . "','" . md5($desiredpass) . "','0');";
-		$result = $conn->query($sql);
-		echo $result;
-		echo "Registered " . $desiredusername . " successfully";
+$sql = "SELECT user FROM teams";
+$result = $conn->query($sql);
+    while($row = $result->fetch_assoc()) {
+                 $users[] = $row['user'];
+}
+//var_dump($users);
+if (array_search($users, $desiredusername) !== false) { 
+	die("Unfortunately, due to the manner of this competition you cannot have a username that is contained in another username.");
+} else {
+	foreach($users as $user){
+		if (strpos($desiredusername, $user) !== false) {
+			die("Unfortunately, due to this manner of this competition you cannot have a username with an existing username inside it. Please pick another.");
+		}
 	}
+
 }
 
-
+		if (ctype_alnum($desiredusername)) {
+		        $sql = "INSERT INTO teams (UserId, user, hash, score) VALUES ('" . rand() . "','" . $desiredusername . "','" . md5($desiredpass) . "','0');";
+			$result = $conn->query($sql);
+			echo $result;
+			echo "Registered " . $desiredusername . " successfully";
+		} else {
+		die("alphanumeric keys for team name only");
+		}
+	}
+}
 
 
 ?>
