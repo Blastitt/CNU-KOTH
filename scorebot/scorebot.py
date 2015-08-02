@@ -1,7 +1,8 @@
 #! /usr/bin/env python2
 
-import socket
-import time
+import socket # Connecting to services
+import time   # Waiting the specified interval
+import thread # Doing multiple things at once
 
 
 class scorebot():
@@ -40,7 +41,7 @@ class scorebot():
 			print("[!] Error connecting to  %s:%d - %s" % (self.status["currentip"], self.status["currentport"], str(e)))
 			return 0
 
-	# Get the file sent from the service.
+	# Get the index.html from the HTTP service.
 	def getHTTP(self):
 
 		try:
@@ -53,6 +54,7 @@ class scorebot():
 
 			print("[!] Error getting file from %s:%d - %s" % (self.status["currentip"], self.status["currentport"], str(e)))
 
+	# Get the FTP banner.
 	def getFTP(self):
 
 		try:
@@ -64,8 +66,9 @@ class scorebot():
 
 			print("[!] Error getting FTP banner from %s:%d - %s" % (self.status["currentip"], self.status["currentport"], str(e)))
 
-	# Parse databuffer for a key. Returns first Key found, or 0 for none.
-	def findKey(self):
+
+	# Parse databuffer for a key and give the team points if their key is found.
+	def findKeys(self):
 
 		for key in self.keylist:
 
@@ -76,18 +79,25 @@ class scorebot():
 				self.status["currentteam"] = key[1].strip("\n")
 
 				if "".join(self.status["databuffer"]).find(self.status["currentkey"]) != -1:
-
+					
+					print("[+] %s scored %d points!" % (self.status["currentteam"], self.status["pointsworth"]))
+					currtime = time.strftime("%Y-%m-%d %H:%M:%S")
+					self.outfile.write("[%s] %s: + %d\n" % (currtime, self.status["currentteam"], self.status["pointsworth"]))
+					
 					self.status["databuffer"] = ""
-					return 1
 
 
 		self.status["databuffer"] = ""
-		return 0
+		self.keylist.seek(0)
 
-	# Connect to each service, get its banner, parse it for a key, appends current time, team name, and points to output file.
+
+	# Connects to each service and scores it.
 	def score(self):
 
 		for line in self.iplist:
+
+			if stop:
+				break
 
 			if line[0] != '#':
 
@@ -114,25 +124,55 @@ class scorebot():
 
 						print("[!] The %s protocol is not currently supported." % self.status["currentproto"])
 
-					if self.findKey():
+					self.findKeys()
 
-						print("[+] %s scored %d points!" % (self.status["currentteam"], self.status["pointsworth"]))
-						currtime = time.strftime("%Y-%m-%d %H:%M:%S")
-						self.outfile.write("[%s] %s: + %d\n" % (currtime, self.status["currentteam"], self.status["pointsworth"]))
-
-
-					self.keylist.seek(0)
 					self.connection.close()
 					self.status["connected"] = False
 
 
 		self.iplist.seek(0)
 
+
 if __name__ == '__main__':
 	
+	# We're gonna thread this so the user can stop the loop at any time.
+	def interrupt(stop):
+
+		raw_input("\nPress ENTER to stop scoring.\n\n")
+		stop.append(None)
+
+	# So runs with longer intervals don't have to wait too long between hitting ENTER and actually stopping.
+	def waitInterval(interval):
+
+		interval = interval / 5
+
+		i = 0
+
+		while i < 5:
+
+			if stop:
+				break
+
+			time.sleep(interval)
+			i += 1
+
+
+
 	myscorebot = scorebot("./config/iplist.cfg", "./config/keylist.cfg", "./output/scorelog.txt", 10)
+
+	stop = []
+
+	# Just some hacky stuff to make the loop stop when you hit ENTER
+	thread.start_new_thread(interrupt, (stop,))
 
 	while True:
 
 		myscorebot.score()
-		time.sleep(myscorebot.interval)
+		if stop:
+			break
+		waitInterval(myscorebot.interval)
+
+
+	myscorebot.iplist.close()
+	myscorebot.keylist.close()
+	myscorebot.outfile.close()
