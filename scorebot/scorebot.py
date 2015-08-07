@@ -3,6 +3,7 @@
 import socket # Connecting to services
 import time   # Waiting the specified interval
 import thread # Doing multiple things at once
+import paramiko # SSH library
 
 
 class scorebot():
@@ -17,11 +18,12 @@ class scorebot():
 		self.connection = None
 
 		self.status = {
-			"connected" : False,
 			"databuffer" : "",
 			"currentproto" : None,
 			"currentip" : None,
 			"currentport" : None,
+			"currentuser" : None,
+			"currentpass" : None,
 			"currentkey" : None,
 			"currentteam" : None,
 			"pointsworth" : 0
@@ -41,14 +43,17 @@ class scorebot():
 			print("[!] Error connecting to  %s:%d - %s" % (self.status["currentip"], self.status["currentport"], str(e)))
 			return 0
 
-	# Get the index.html from the HTTP service.
+	# Get the index.html file from the HTTP service.
 	def getHTTP(self):
 
 		try:
 
-			fileobj = self.connection.makefile('r', 0)
-			fileobj.write("GET / HTTP/1.0\n\n")
-			self.status["databuffer"] = fileobj.readlines()
+			if self.connect():
+
+				fileobj = self.connection.makefile('r', 0)
+				fileobj.write("GET / HTTP/1.0\n\n")
+				self.status["databuffer"] = fileobj.readlines()
+				self.connection.close()
 
 		except Exception as e:
 
@@ -59,14 +64,36 @@ class scorebot():
 
 		try:
 
-			self.connection.sendall("HELP\r\n")
-			self.status["databuffer"] = self.connection.recv(1024)
+			if self.connect():
+
+				self.connection.sendall("HELP\r\n")
+				self.status["databuffer"] = self.connection.recv(1024)
+				self.connection.close()
 
 		except Exception as e:
 
 			print("[!] Error getting FTP banner from %s:%d - %s" % (self.status["currentip"], self.status["currentport"], str(e)))
 
+	# Get SSH banner
+	def getSSH(self):
 
+		try:
+
+			self.connection = paramiko.SSHClient()
+			self.connection.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+			try:
+				self.connection.connect(self.status["currentip"], port=self.status["currentport"], username="", password="", look_for_keys=False, allow_agent=False)
+			except:
+				if self.connection._transport != None:
+					self.status["databuffer"] = self.connection._transport.get_banner()
+				else:
+					print("[!] Could not connect to SSH on %s:%d" % (self.status["currentip"], self.status["currentport"]))
+			self.connection.close()
+
+		except Exception as e:
+
+			print("[!] Error getting SSH banner from %s:%d - %s" % (self.status["currentip"], self.status["currentport"], str(e)))
+	
 	# Parse databuffer for a key and give the team points if their key is found.
 	def findKeys(self):
 
@@ -102,32 +129,36 @@ class scorebot():
 			if line[0] != '#':
 
 				line = line.split(":")
+
 				self.status["currentproto"] = str.upper(line[0])
-				self.status["currentip"] = line[1]
-				self.status["currentport"] = int(line[2])
-				self.status["pointsworth"] = int(line[3])
 
 
-				self.status["connected"] = self.connect()
+				if self.status["currentproto"] == "HTTP":
 
-				if self.status["connected"]:
+					self.status["currentip"] = line[1]
+					self.status["currentport"] = int(line[2])
+					self.status["pointsworth"] = int(line[3])
+					self.getHTTP()
 
-					if self.status["currentproto"] == "HTTP":
+				elif self.status["currentproto"] == "FTP":
 
-						self.getHTTP()
+					self.status["currentip"] = line[1]
+					self.status["currentport"] = int(line[2])
+					self.status["pointsworth"] = int(line[3])
+					self.getFTP()
 
-					elif self.status["currentproto"] == "FTP":
+				elif self.status["currentproto"] == "SSH":
 
-						self.getFTP()
-					
-					else:
+					self.status["currentip"] = line[1]
+					self.status["currentport"] = int(line[2])
+					self.status["pointsworth"] = int(line[3])
+					self.getSSH()
 
-						print("[!] The %s protocol is not currently supported." % self.status["currentproto"])
+				else:
 
-					self.findKeys()
+					print("[!] The %s protocol is not currently supported." % self.status["currentproto"])
 
-					self.connection.close()
-					self.status["connected"] = False
+				self.findKeys()
 
 
 		self.iplist.seek(0)
@@ -144,17 +175,10 @@ if __name__ == '__main__':
 	# So runs with longer intervals don't have to wait too long between hitting ENTER and actually stopping.
 	def waitInterval(interval):
 
-		interval = interval / 5
-
-		i = 0
-
-		while i < 5:
-
+		for i in range(interval):
 			if stop:
-				break
-
-			time.sleep(interval)
-			i += 1
+				return
+			time.sleep(1)
 
 
 
