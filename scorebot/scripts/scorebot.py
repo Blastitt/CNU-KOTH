@@ -4,16 +4,24 @@ import socket # Connecting to services
 import time   # Waiting the specified interval
 import thread # Doing multiple things at once
 import paramiko # SSH library
+import MySQLdb as mdb # MySQL integration
 
 
 class scorebot():
 
-	def __init__(self, iplist, keylist, outfile, interval):
+	def __init__(self, databasefile, iplist, keylist, outfile, interval):
 
+		self.databasefile = open(databasefile, 'r')
 		self.iplist = open(iplist, 'r')
 		self.keylist = open(keylist, 'r')
 		self.outfile = open(outfile, 'a')
-#		self.sqladdr = sqladdr		Maybe add SQL database functionality later.
+
+		self.dbip = "localhost"
+		self.db = None
+		self.dbuser = None
+		self.dbpass = None
+		self.dbconnection = None
+		self.dbcur = None
 		self.interval = interval
 		self.connection = None
 
@@ -31,6 +39,7 @@ class scorebot():
 
 	# Connect to a service. Returns 1 on success, 0 on failure.
 	def connect(self):
+
 		try:
 
 			self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -43,6 +52,46 @@ class scorebot():
 			print("[!] Error connecting to  %s:%d - %s" % (self.status["currentip"], self.status["currentport"], str(e)))
 			return 0
 
+	# Parse database config file for credentials and connect to the database
+	def dbConnect(self):
+
+		try:
+
+			lines = self.databasefile.readlines()
+
+			for line in lines:
+				if line[0] != '#' and line[0] != '\n':
+					line = line.split('=')
+
+					if line[0] == "user":
+						self.dbuser = line[1].strip('\n')
+					elif line[0] == "pass":
+						self.dbpass = line[1].strip('\n')
+					elif line[0] == "database":
+						self.db = line[1].strip('\n')
+					elif line[0] == "ip":
+						self.dbip = line[1].strip('\n')
+
+			self.dbconnection = mdb.connect(self.dbip, self.dbuser, self.dbpass, self.db, connect_timeout=5)
+
+			self.dbcur = self.dbconnection.cursor()
+
+		except Exception as e:
+
+			self.dbconnection = None
+			print("[!] Error establishing database connection!")
+			print("[!] SCORES WILL ONLY BE LOGGED TO THE SCORELOG.TXT FILE")
+
+	# Update database with points scored
+	def updateScores(self):
+		try:
+
+			self.dbcur.execute("UPDATE ScoreBoard SET Points = Points + %s WHERE Name = %s;", (str(self.status["pointsworth"]), self.status["currentteam"]))
+			self.dbconnection.commit()
+
+		except Exception as e:
+
+			print("[!] Error updating scores: %s" % (str(e)))
 	# Get the index.html file from the HTTP service.
 	def getHTTP(self):
 
@@ -93,6 +142,21 @@ class scorebot():
 		except Exception as e:
 
 			print("[!] Error getting SSH banner from %s:%d - %s" % (self.status["currentip"], self.status["currentport"], str(e)))
+
+	# Custom flag server service
+	def getCustom(self):
+
+		try:
+
+			if self.connect():
+
+				self.connection.sendall("givemeflags\r\n")
+				self.status["databuffer"] = self.connection.recv(1024)
+				self.connection.close()
+
+		except Exception as e:
+
+			print("[!] Error getting flags from custom flag service on %s:%d - %s" % (self.status["currentip"], self.status["currentport"], str(e)))
 	
 	# Parse databuffer for a key and give the team points if their key is found.
 	def findKeys(self):
@@ -109,8 +173,14 @@ class scorebot():
 					
 					print("[+] %s scored %d points!" % (self.status["currentteam"], self.status["pointsworth"]))
 					currtime = time.strftime("%Y-%m-%d %H:%M:%S")
-					self.outfile.write("[%s] %s: + %d\n" % (currtime, self.status["currentteam"], self.status["pointsworth"]))
-					
+					self.outfile.write("[%s] %s + %d\n" % (currtime, self.status["currentteam"], self.status["pointsworth"]))
+					self.outfile.flush()
+
+					self.dbConnect()
+					if self.dbconnection:
+						self.updateScores()
+						self.dbconnection.close()
+
 					self.status["databuffer"] = ""
 
 
@@ -140,6 +210,13 @@ class scorebot():
 					self.status["pointsworth"] = int(line[3])
 					self.getHTTP()
 
+				elif self.status["currentproto"] == "CUST":
+
+					self.status["currentip"] = line[1]
+					self.status["currentport"] = int(line[2])
+					self.status["pointsworth"] = int(line[3])
+					self.getCustom()
+
 				elif self.status["currentproto"] == "FTP":
 
 					self.status["currentip"] = line[1]
@@ -164,27 +241,28 @@ class scorebot():
 		self.iplist.seek(0)
 
 
-if __name__ == '__main__':
+
 	
-	# We're gonna thread this so the user can stop the loop at any time.
-	def interrupt(stop):
+# We're gonna thread this so the user can stop the loop at any time.
+def interrupt(stop):
 
-		raw_input("\nPress ENTER to stop scoring.\n\n")
-		stop.append(None)
+	raw_input("\nSTARTING SCORING!\nPress ENTER to stop scoring.\n\n")
+	stop.append(None)
 
-	# So runs with longer intervals don't have to wait too long between hitting ENTER and actually stopping.
-	def waitInterval(interval):
+# So runs with longer intervals don't have to wait too long between hitting ENTER and actually stopping.
+def waitInterval(interval):
 
-		for i in range(interval):
-			if stop:
-				return
-			time.sleep(1)
+	for i in range(interval):
+		if stop:
+			return
+		time.sleep(1)
 
 
+stop = []
 
-	myscorebot = scorebot("./config/iplist.cfg", "./config/keylist.cfg", "./output/scorelog.txt", 10)
+def main():
+	myscorebot = scorebot("../config/database.cfg", "../config/iplist.cfg", "../config/keylist.cfg", "../output/scorelog.txt", 10)
 
-	stop = []
 
 	# Just some hacky stuff to make the loop stop when you hit ENTER
 	thread.start_new_thread(interrupt, (stop,))
@@ -200,3 +278,4 @@ if __name__ == '__main__':
 	myscorebot.iplist.close()
 	myscorebot.keylist.close()
 	myscorebot.outfile.close()
+	myscorebot.databasefile.close()
