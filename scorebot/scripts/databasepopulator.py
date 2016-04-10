@@ -53,7 +53,7 @@ class dbpopulator():
 
 		cur = self.connection.cursor()
 
-		cur.execute("CREATE TABLE IF NOT EXISTS ScoreBoard (Name VARCHAR(10) NOT NULL UNIQUE, Flag VARCHAR(20) NOT NULL UNIQUE, Points INT)")
+		cur.execute("CREATE TABLE IF NOT EXISTS ScoreBoard (Name VARCHAR(50) NOT NULL UNIQUE, Flag VARCHAR(20) NOT NULL UNIQUE, Points INT)")
 		
 		cur.execute("CREATE TABLE IF NOT EXISTS Boxes (IP VARCHAR(15) NOT NULL UNIQUE, Points INT, OwnedBy VARCHAR(100))") 
 		
