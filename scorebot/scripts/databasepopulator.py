@@ -7,7 +7,7 @@ warnings.filterwarnings("ignore")
 
 
 class dbpopulator():
-	def __init__(self, dbconfig, teamlist):
+	def __init__(self, dbconfig, teamlist, boxlist):
 
 		self.dbuser = None
 		self.dbpass = None
@@ -15,8 +15,10 @@ class dbpopulator():
 		self.dbip = None
 		self.connection = None
 		self.teams = None
+		self.boxes = None
 		self.dbconfig = open(dbconfig, 'r')
 		self.teamlist = open(teamlist, 'r')
+		self.boxlist = open(boxlist, 'r')
 
 	def dbconnect(self):
 
@@ -41,13 +43,20 @@ class dbpopulator():
 
 		self.teams = self.teamlist.readlines()
 		self.teamlist.close()
-
+	
+	def getBoxes(self):
+		
+		self.boxes = self.boxlist.readlines()
+		self.boxlist.close()
+		
 	def populate(self):
 
 		cur = self.connection.cursor()
 
 		cur.execute("CREATE TABLE IF NOT EXISTS ScoreBoard (Name VARCHAR(10) NOT NULL UNIQUE, Flag VARCHAR(20) NOT NULL UNIQUE, Points INT)")
-
+		
+		cur.execute("CREATE TABLE IF NOT EXISTS Boxes (IP VARCHAR(15) NOT NULL UNIQUE, Points INT, OwnedBy VARCHAR(100))") 
+		
 		for line in self.teams:
 
 			if line[0] != '#' and line[0] != '\n':
@@ -60,12 +69,22 @@ class dbpopulator():
 				self.connection.commit()
 
 		print("[+] Successfully enrolled new teams into the ScoreBoard table of the database.")
+		
+		for line in self.boxes:
+			if line[0] != '#' and line[0] != '\n':
+					line = line.split(':')
+					ip = line[1]
+					points = int(line[3].strip('\n'))
+					
+					cur.execute("INSERT IGNORE INTO Boxes (IP, Points) VALUES (%s, %d)", (ip, points))
+					
 		self.connection.close()
 
 def main():
 
-	mypopulator = dbpopulator("../config/database.cfg", "../config/keylist.cfg")
+	mypopulator = dbpopulator("../config/database.cfg", "../config/keylist.cfg", "../config/iplist.cfg")
 
 	mypopulator.dbconnect()
 	mypopulator.getteams()
+	mypopulator.getBoxes()
 	mypopulator.populate()
