@@ -77,6 +77,9 @@ class dbpopulator():
 					points = int(line[3].strip('\n'))
 					
 					cur.execute("INSERT IGNORE INTO Boxes (IP, Points) VALUES (%s, %d)", (ip, points))
+					self.connection.commit()
+					
+		print("[+] Successfully enrolled new boxes into the Boxes table of the database.")
 					
 		self.connection.close()
 
