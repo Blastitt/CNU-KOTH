@@ -92,6 +92,17 @@ class scorebot():
 		except Exception as e:
 
 			print("[!] Error updating scores: %s" % (str(e)))
+			
+	# Update Boxes table with the team who currently owns the box.
+	def updateOwners(self):
+		try:
+			self.dbcur.execute("UPDATE Boxes SET OwnedBy = %s WHERE IP = %s;", (self.status["currentteam"], self.status["currentip"]))
+			self.dbconnection.commit()
+			
+		except Exception as e:
+			
+			print("[!] Error updating ownership of boxes: %s" % (str(e)))
+			
 	# Get the index.html file from the HTTP service.
 	def getHTTP(self):
 
@@ -179,6 +190,7 @@ class scorebot():
 					self.dbConnect()
 					if self.dbconnection:
 						self.updateScores()
+						self.updateOwners()
 						self.dbconnection.close()
 
 					self.status["databuffer"] = ""
